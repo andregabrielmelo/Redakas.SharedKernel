@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Redakas.SharedKernel</PackageId>
+    <Authors>André Gabriel Melo</Authors>
+    <Description>Base types shared by Clean Architecture projects: entities and aggregate roots, value objects, domain events and their Mediator dispatch, Ardalis.Specification repositories, and the persistence exceptions use cases react to.</Description>
+    <PackageTags>clean-architecture;ddd;shared-kernel;domain-events;specification;mediator</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/andregabrielmelo/Redakas.SharedKernel</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/andregabrielmelo/Redakas.SharedKernel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- The version comes from the latest git tag (v1.2.3 -> 1.2.3); untagged commits build as
+         prereleases of the next patch. -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ardalis.GuardClauses" />
+    <PackageReference Include="Ardalis.Specification" />
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

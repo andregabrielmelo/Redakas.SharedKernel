@@ -1,0 +1,158 @@
+﻿using Ardalis.GuardClauses;
+
+namespace Redakas.SharedKernel;
+
+/// <summary>
+/// NOTE: Use `readonly record struct` for most cases in C# 10+
+/// See: https://nietras.com/2021/06/14/csharp-10-record-struct/
+///
+/// Alternately consider using Vogen
+///
+/// For this class implementation, reference:
+/// See: https://enterprisecraftsmanship.com/posts/value-object-better-implementation/
+/// </summary>
+[Serializable]
+public abstract class ValueObject : IComparable, IComparable<ValueObject>
+{
+    private int? _cachedHashCode;
+
+    protected abstract IEnumerable<object> GetEqualityComponents();
+
+    public override bool Equals(object? obj)
+    {
+        if (obj == null)
+            return false;
+
+        if (GetUnproxiedType(this) != GetUnproxiedType(obj))
+            return false;
+
+        var valueObject = (ValueObject)obj;
+
+        return GetEqualityComponents().SequenceEqual(valueObject.GetEqualityComponents());
+    }
+
+    public override int GetHashCode()
+    {
+        if (!_cachedHashCode.HasValue)
+        {
+            _cachedHashCode = GetEqualityComponents()
+                .Aggregate(
+                    1,
+                    (current, obj) =>
+                    {
+                        unchecked
+                        {
+                            return current * 23 + (obj?.GetHashCode() ?? 0);
+                        }
+                    }
+                );
+        }
+
+        return _cachedHashCode.Value;
+    }
+
+    public int CompareTo(object? obj)
+    {
+        if (obj == null)
+            return 1;
+
+        var thisType = GetUnproxiedType(this);
+        var otherType = GetUnproxiedType(obj);
+
+        if (thisType != otherType)
+            return string.Compare(
+                thisType.ToString(),
+                otherType.ToString(),
+                StringComparison.Ordinal
+            );
+
+        var other = (ValueObject)obj;
+
+        var components = GetEqualityComponents().ToArray();
+        var otherComponents = other.GetEqualityComponents().ToArray();
+
+        for (var i = 0; i < components.Length; i++)
+        {
+            var comparison = CompareComponents(components[i], otherComponents[i]);
+            if (comparison != 0)
+                return comparison;
+        }
+
+        return 0;
+    }
+
+    private static int CompareComponents(object? object1, object? object2)
+    {
+        if (object1 is null && object2 is null)
+            return 0;
+
+        if (object1 is null)
+            return -1;
+
+        if (object2 is null)
+            return 1;
+
+        if (object1 is IComparable comparable1 && object2 is IComparable comparable2)
+            return comparable1.CompareTo(comparable2);
+
+        // Neither is IComparable: order by their text, so a < b and b < a are never both true.
+        return object1.Equals(object2)
+            ? 0
+            : string.CompareOrdinal(object1.ToString(), object2.ToString());
+    }
+
+    public int CompareTo(ValueObject? other)
+    {
+        return CompareTo(other as object);
+    }
+
+    public static bool operator ==(ValueObject a, ValueObject b)
+    {
+        if (a is null && b is null)
+            return true;
+
+        if (a is null || b is null)
+            return false;
+
+        return a.Equals(b);
+    }
+
+    public static bool operator !=(ValueObject a, ValueObject b)
+    {
+        return !(a == b);
+    }
+
+    // Ordering follows CompareTo: by type name first, then component by component.
+    public static bool operator <(ValueObject left, ValueObject right) => Compare(left, right) < 0;
+
+    public static bool operator <=(ValueObject left, ValueObject right) =>
+        Compare(left, right) <= 0;
+
+    public static bool operator >(ValueObject left, ValueObject right) => Compare(left, right) > 0;
+
+    public static bool operator >=(ValueObject left, ValueObject right) =>
+        Compare(left, right) >= 0;
+
+    // null sorts first, as Comparer<T>.Default does.
+    private static int Compare(ValueObject? left, ValueObject? right) =>
+        left is null ? (right is null ? 0 : -1) : left.CompareTo(right);
+
+    internal static Type GetUnproxiedType(object obj)
+    {
+        Guard.Against.Null(obj);
+
+        const string EFCoreProxyPrefix = "Castle.Proxies.";
+        const string NHibernateProxyPostfix = "Proxy";
+
+        var type = obj.GetType();
+        var typeString = type.ToString();
+
+        if (
+            typeString.Contains(EFCoreProxyPrefix)
+            || typeString.EndsWith(NHibernateProxyPostfix, StringComparison.Ordinal)
+        )
+            return type.BaseType!;
+
+        return type;
+    }
+}
