@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, test and pack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # MinVer computes the version from the tags, so it needs the history.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup .NET SDK (global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore dependencies
+        run: dotnet restore Redakas.SharedKernel.slnx --locked-mode
+
+      - name: Check formatting (csharpier)
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
+      - name: Build
+        run: dotnet build Redakas.SharedKernel.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Redakas.SharedKernel.slnx --configuration Release --no-build
+
+      - name: Pack
+        run: dotnet pack src/Redakas.SharedKernel --configuration Release --no-build --output artifacts

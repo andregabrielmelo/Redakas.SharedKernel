@@ -1,0 +1,44 @@
+name: Release
+
+# Pushing a version tag (v1.2.3) builds, tests and publishes that version to nuget.org.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to nuget.org
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup .NET SDK (global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore Redakas.SharedKernel.slnx --locked-mode
+
+      - name: Build
+        run: dotnet build Redakas.SharedKernel.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Redakas.SharedKernel.slnx --configuration Release --no-build
+
+      - name: Pack
+        run: dotnet pack src/Redakas.SharedKernel --configuration Release --no-build --output artifacts
+
+      # NUGET_API_KEY: a nuget.org API key scoped to "Push new packages and package versions"
+      # for Redakas.*. The symbols package (.snupkg) is pushed with it.
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
